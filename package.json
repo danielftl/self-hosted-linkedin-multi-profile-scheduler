@@ -1,0 +1,14 @@
+{
+  "name": "linkedin-personal-profile-scheduler",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "start": "node src/start.mjs",
+    "worker": "node src/worker-start.mjs",
+    "test": "node --test",
+    "test:twice": "node --test && node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

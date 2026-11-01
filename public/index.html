@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LinkedIn Profile Scheduler</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">LinkedIn Profile Scheduler</div>
+    <button id="new-post" class="primary wide">+ New Post</button>
+    <nav class="nav" aria-label="Main navigation">
+      <button id="nav-publish" class="nav-item active">▦ Publish</button>
+    </nav>
+    <div class="sidebar-heading">LinkedIn profiles</div>
+    <div id="accounts" class="accounts"></div>
+    <button id="connect" class="secondary wide">+ Connect profile</button>
+    <button id="logout" class="signout" hidden>Sign out</button>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <h1>Publish</h1>
+      <div class="header-actions">
+        <button id="list-view" class="toggle">List</button>
+        <button id="calendar-view" class="toggle active">Calendar</button>
+        <button id="header-new-post" class="secondary">+ New Post</button>
+      </div>
+    </header>
+    <section id="login-panel" class="panel login" hidden>
+      <h2>Sign in</h2>
+      <form id="login-form">
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button class="primary">Sign in</button>
+      </form>
+    </section>
+    <div id="workspace" hidden>
+      <p id="setup" class="notice" hidden></p>
+      <section id="calendar-section" class="calendar-section">
+        <div class="calendar-toolbar">
+          <div class="calendar-heading">
+            <button id="prev-month" class="icon-button" aria-label="Previous month">‹</button>
+            <button id="next-month" class="icon-button" aria-label="Next month">›</button>
+            <strong id="month-label"></strong>
+            <button id="today" class="secondary">Today</button>
+          </div>
+          <span id="calendar-timezone"></span>
+        </div>
+        <div id="calendar" class="calendar-grid" aria-label="Scheduled posts calendar"></div>
+      </section>
+      <section id="list-section" class="panel" hidden>
+        <h2>Scheduled posts</h2>
+        <div class="table-wrap">
+          <table><thead><tr><th>Profile</th><th>Post</th><th>Scheduled for</th><th>Status</th></tr></thead>
+          <tbody id="jobs"></tbody></table>
+        </div>
+      </section>
+    </div>
+    <p id="message" role="status" aria-live="polite"></p>
+  </main>
+</div>
+<div id="composer-overlay" class="overlay" hidden>
+  <section class="composer" role="dialog" aria-modal="true" aria-labelledby="composer-title">
+    <header class="composer-header">
+      <h2 id="composer-title">Create Post</h2>
+      <button id="close-composer" class="icon-button" aria-label="Close">×</button>
+    </header>
+    <div class="composer-columns">
+      <div class="composer-left">
+        <div id="selected-profiles" class="selected-profiles" aria-label="Selected LinkedIn profiles"></div>
+        <form id="schedule-form">
+          <label for="content">Post</label>
+          <textarea id="content" rows="9" maxlength="3000" placeholder="Start writing"></textarea>
+          <div class="under"><span id="count">0 / 3000</span></div>
+          <label for="attachment">Attachment</label>
+          <input id="attachment" type="file" accept=".png,.jpg,.jpeg,.gif,.pdf,.doc,.docx,.ppt,.pptx,.mp4,.mov">
+          <label for="date">Date and time</label>
+          <input id="date" type="datetime-local" required>
+          <div class="composer-footer">
+            <span id="selected-count"></span>
+            <button id="schedule" class="primary" type="submit">Schedule Posts</button>
+          </div>
+        </form>
+      </div>
+      <div class="composer-right">
+        <h3>LinkedIn Preview</h3>
+        <article class="preview-card">
+          <strong id="preview-profile">LinkedIn</strong>
+          <p id="preview-text"></p>
+          <div id="preview-attachment" class="preview-media" hidden></div>
+        </article>
+      </div>
+    </div>
+  </section>
+</div>
+</body>
+</html>

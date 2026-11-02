@@ -1,116 +1,136 @@
-# LinkedIn Profile Scheduler
+# Self-Hosted LinkedIn Multi-Profile Scheduler
 
-An open-source, self-hosted alternative to the basic LinkedIn scheduling workflow. Connect multiple **personal LinkedIn profiles**, write a post once, select the profiles, and schedule it across them.
+An **open-source LinkedIn post scheduler** for multiple **personal LinkedIn profiles**. Write a post once, choose which connected profiles receive it, and schedule publication. You can run it on your own computer or ask your AI to help deploy it on a server.
 
-Built by Daniel. Free to use under the MIT License. **Not affiliated with LinkedIn or Buffer.**
+Built by Daniel. Free to use under the **MIT License**. **Not affiliated with LinkedIn or Buffer.**
 
 ![Calendar with example profiles](docs/demo-calendar.png)
 
-## What it does
+## Not a coder? Give this project to your AI
 
-- Connect multiple personal LinkedIn profiles through LinkedIn's official OAuth authorization.
-- Schedule one text post across multiple selected profiles.
-- Attach **one** image, document, or video to each scheduled post (the app uploads a separate private copy for each selected profile).
-- Calendar and list views, status tracking, a preview, and password-protected access.
-- Remove our uploaded media after LinkedIn confirms publication. Uncertain outcomes are held for review instead of blindly retrying.
+You do **not** need to know how to install or configure every component. **Start in an ordinary ChatGPT chat** (or another AI assistant that can read GitHub). Paste the complete prompt below; your AI should explain the choices, handle what it can, and tell you when ChatGPT **Work** is needed for deployment.
 
-**Not included:** Facebook, LinkedIn Company Pages, analytics, carousel creation, multiple attachments in a single post, multiple independent app users, or one-click hosting. **You supply your own LinkedIn developer credentials and hosting.**
+**Copy and paste this prompt:**
 
-## Quick start (Windows, Mac, or Linux)
+```text
+I want to set up this open-source LinkedIn scheduler for my own personal LinkedIn accounts:
+https://github.com/danielftl/self-hosted-linkedin-multi-profile-scheduler
 
-You need **Node.js 22 or newer**, a LinkedIn account, and your **own LinkedIn developer application**.
+I am not a developer. Take responsibility for the technical work using the tools you actually have. First read the repository's current README, setup guide, hosting guide, and source code. Do not guess from the repository name or create a new app from scratch.
 
-### 1. Download this project
+Start in ordinary ChatGPT Chat. Explain the two SETUP OPTIONS (OR), with any costs or limits, and ask which fits me:
+A. Run on my own computer. Posting works only while the computer and the website/publishing worker are running.
+B. Run online so scheduled posts can publish while my computer is off. For a ChatGPT Site, tell me when to use ChatGPT Work and hand the exact repository and requirements to Work. If we choose another hosting provider, explain its separate setup and charges.
 
-On this GitHub page, click **Code → Download ZIP**, then unzip it. Alternatively, clone the repository with Git.
+Use Chat for planning, reading, explaining and any actions it can perform with available tools. Use Work only when its deployment/computer capabilities are actually needed. Do not assume Chat, Work and Codex have identical access.
 
-### 2. Get your own LinkedIn API credentials
+Use only the source supplied by this public repository. Preserve its existing functionality and design unless a change is required for my chosen hosting environment. Do not connect to the original author's Site, API, plugin, LinkedIn accounts or credentials.
 
-Follow [GET_YOUR_LINKEDIN_API.md](docs/GET_YOUR_LINKEDIN_API.md). You'll create your own developer app and enable two self-service products. **Do not use anybody else's Client ID or Client Secret.**
+Guide me through creating my own LinkedIn developer app, obtaining the supported personal-profile permissions, registering the correct sign-in callback, and authorizing each profile I control. Keep credentials in my own environment, not in this chat or GitHub.
 
-### 3. Create your private settings file
+A separate API or ChatGPT plugin is NOT required for ordinary website scheduling. Only if I want to schedule through ordinary ChatGPT chats, help Work create and install a plugin connected to MY newly deployed Site, then test it from a normal chat.
 
-Copy `.env.example` to a file named `.env` in the project folder.
+Test installation, login, connected profiles, the scheduling queue and the unattended publishing mechanism. Ask my approval of the exact LinkedIn profile, post text and time before scheduling any real public post. Distinguish 'job created' from 'post published'. Do not claim success without checking.
 
-On Windows, open PowerShell in the project folder and run:
-
-```powershell
-Copy-Item .env.example .env
+This project supports personal LinkedIn profiles, NOT Company Pages. Company Page publishing requires different permissions and implementation. Keep the explanation practical, identify the next action I need to take, and do not add needless dependencies.
 ```
 
-On Mac/Linux:
+[Open the full AI setup guide](docs/AI_SETUP_PROMPT.md) for a checklist and troubleshooting instructions.
 
-```sh
-cp .env.example .env
-```
+### What your AI should guide you through
 
-Open `.env` in a text editor. Fill in:
+1. **Choose ONE installation route (OR):**
+   - **Your computer:** easiest to try; it must stay running for scheduled publication.
+   - **Online hosting:** the scheduler can continue when your computer is off; requires a suitable hosting environment. For a ChatGPT Site, use **Work** to deploy from these public source files. Work should explain hosting limits and any costs before provisioning.
+2. **Set up your own LinkedIn developer app** and grant the appropriate permissions for personal profiles.
+3. **Connect your own accounts** and test the website and publishing process.
+4. **Optional:** If you also want to schedule posts from ordinary ChatGPT chats, have your AI help set up **your own plugin** connected to **your own deployment**. A ChatGPT plugin is **not needed** to use the website.
 
-- `ADMIN_PASSWORD`: a long, unique password for signing into your scheduler.
-- `LINKEDIN_CLIENT_ID`: your developer app's Client ID.
-- `LINKEDIN_CLIENT_SECRET`: your developer app's Client Secret.
-- `TOKEN_ENCRYPTION_KEY`: generate a random 32-byte encryption key using the command below.
+**Important:** The project does not include an installed plugin, an already running API for you to use, a LinkedIn developer account, or a ready-made hosted service. The AI will configure what your chosen installation needs. **Nobody gets access to the original author's accounts or live scheduler through this code.**
 
-To generate the encryption key, run:
+## What it supports
+
+- Connect multiple **personal LinkedIn profiles**, each authorized through LinkedIn's official sign-in flow.
+- Write text once and schedule a separate post for each selected profile.
+- Attach **one** image, document, or video to each scheduled post.
+- Calendar and list views, status tracking, post preview, and standalone password-protected access.
+- Clean up uploaded media after confirmed publication; flag uncertain outcomes rather than blindly posting twice.
+
+**Not supported:** LinkedIn Company Pages, Facebook, analytics, carousels, multiple attachments per post, or separate user logins for multiple customers.
+
+**Why no LinkedIn Company Pages?** They require different organization-level permissions, including `w_organization_social`, and an appropriate LinkedIn API access approval. This code does not implement Company Page scheduling; receiving approval alone does not add that feature. See [LinkedIn's permissions documentation](https://learn.microsoft.com/en-us/linkedin/marketing/increasing-access) and [Posts API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api).
+
+## Manual installation (if you do not want an AI to set it up)
+
+You need **Node.js 22 or newer**, your own LinkedIn developer app, and a computer or server where you can run the project.
+
+### 1. Download the code
+
+On this GitHub page select **Code → Download ZIP**, then extract the ZIP. Or use Git to clone the repository.
+
+### 2. Get your own LinkedIn credentials
+
+Follow [Get your own LinkedIn API access](docs/GET_YOUR_LINKEDIN_API.md). You must use your **own** Client ID and Client Secret. Every personal profile you connect must independently authorize your app.
+
+### 3. Create your private configuration
+
+Copy `.env.example` to `.env` in the project folder. Fill in:
+
+- `ADMIN_PASSWORD`: password to access **your self-hosted website**.
+- `LINKEDIN_CLIENT_ID` and `LINKEDIN_CLIENT_SECRET`: from **your** LinkedIn developer app.
+- `TOKEN_ENCRYPTION_KEY`: a randomly generated 32-byte encryption key.
+
+Generate the encryption key using Node.js:
 
 ```sh
 node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 ```
 
-Copy the output into `TOKEN_ENCRYPTION_KEY=` in `.env`. Keep the key private and backed up securely; losing it means reconnecting LinkedIn accounts.
+Keep the key and other credentials private. Register `http://localhost:3000/auth/linkedin/callback` in your developer app when running locally, matching your configuration exactly.
 
-The default redirect URL is `http://localhost:3000/auth/linkedin/callback`. Add that **exact URL** to your LinkedIn app's Auth tab.
-
-### 4. Start the app
-
-Open a terminal in the project folder and run:
+### 4. Run the website
 
 ```sh
 node --env-file=.env src/start.mjs
 ```
 
-Open **http://localhost:3000** in your browser and sign in using your `ADMIN_PASSWORD`.
+Open http://localhost:3000, sign in, and connect your personal LinkedIn profiles.
 
-Click **Connect profile**, sign in to LinkedIn if prompted, and approve the permissions. Repeat for other personal profiles you manage.
-
-### 5. Start the scheduled publishing worker
-
-Open **another terminal** in the same folder and run:
+### 5. Run the publishing worker in another terminal
 
 ```sh
 node --env-file=.env src/worker-start.mjs
 ```
 
-**Keep both terminals running** to publish scheduled posts. If your PC is off or asleep, local scheduling stops. To publish 24/7, use a continuously running server with persistent storage; see [HOSTING.md](docs/HOSTING.md).
+**Both processes must run** for local scheduled publishing. If your computer sleeps or shuts down, local publishing stops. For hosting that continues when your computer is off, see [Hosting options](docs/HOSTING.md).
 
-### 6. Schedule your first post
+### 6. Verify one scheduled post
 
-Select one or more connected profiles using the checkboxes, click **New Post**, write your text, optionally attach a file, choose a future time, and click **Schedule Posts**. A separate job is created for each selected profile.
+Choose the target profile(s), click **New Post**, enter your content and future time, then click **Schedule Posts**. Verify the job appears in the queue. Later verify the post was actually published, rather than assuming a saved job means success.
 
-**First test:** Schedule a harmless post to a profile you own, and verify it appears on LinkedIn. Publishing creates a **public LinkedIn post**.
+## Hosting and ChatGPT integration
 
-## Security and limitations
+[HOSTING.md](docs/HOSTING.md) explains the available routes: computer **OR** a continuously running server **OR** a ChatGPT Site adapted from this source. Hosting, platform account registration, storage, and usage charges depend on the route you choose.
 
-- Never upload your `.env`, `.sqlite` databases, media files, access tokens, or secrets to GitHub. They are excluded by `.gitignore`.
-- This is a **single-admin application**. Anyone with its website address and admin password can schedule posts on **all connected profiles**. Use HTTPS and a strong password if you host it online.
-- Your LinkedIn access tokens expire. Reconnect profiles when the app reports expiration.
-- Uploaded files are kept privately until publication succeeds; failed or uncertain jobs retain their files. For videos, large files and media processing may have API restrictions.
-- The app limits attachments to one per post and currently accepts JPG/PNG/GIF (up to 20 MB), PDF/DOC/DOCX/PPT/PPTX/MP4/MOV (up to 25 MB).
-- A publishing response lost in transit can leave a job marked **uncertain**. Check LinkedIn manually before trying again to avoid duplicate posts.
-- LinkedIn's API versions and policies can change. Some advanced permissions need LinkedIn approval; the personal-profile posting scope is currently offered through the self-service **Share on LinkedIn** product.
-- The **Sites/Cloudflare adapter** in `src/sites-worker.mjs` is provided for developers, but has not been verified on a live deployment. It requires D1, R2, secure secrets and a cloud scheduler. See [HOSTING.md](docs/HOSTING.md).
+A Site can expose its functions to ordinary ChatGPT chats via **your own Site-hosted plugin**, configured in Work. **This is optional** and separate from website functionality. Publishing the GitHub source does not publish or share the author's own plugin/API credentials.
 
-## Run automated tests
+## Tests and limitations
+
+Run the automated tests:
 
 ```sh
 npm run test:twice
 ```
 
-The tests simulate LinkedIn responses. **Passing tests does not mean a live LinkedIn connection or cloud deployment is verified.**
+Tests use simulated LinkedIn responses. **Passing them does not prove a real LinkedIn profile is connected or that unattended publication works.**
 
-## Need help setting it up with AI?
-
-Copy the instructions in [AI_SETUP_PROMPT.md](docs/AI_SETUP_PROMPT.md) into your AI assistant. It will guide you through the developer app, local setup, testing, and hosting without asking you to share your Client Secret.
+- This is a **single-admin** application, not a multi-customer SaaS.
+- Do not publish a real test post without checking the exact account, content and time.
+- Do not add `.env`, access tokens, SQLite databases, uploaded files or secrets to a public repository.
+- LinkedIn authorizations can expire; reconnect profiles when needed.
+- A published response lost in transit can leave a job uncertain. Check LinkedIn before retrying.
+- Attachment limit: one file per post; supported images JPG/PNG/GIF up to 20 MB, documents PDF/DOC/DOCX/PPT/PPTX and videos MP4/MOV up to 25 MB.
+- The repository includes an adapter for Sites/Cloudflare-style hosting, but **this public standalone package is not a one-click Sites deployment**. An AI must configure the destination's database, file storage, authentication, and scheduler and verify the actual deployed behavior.
 
 ## License
 

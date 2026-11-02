@@ -29,7 +29,7 @@ textarea{resize:vertical;min-height:175px;line-height:1.5}input[type=file]{paddi
 #calendar-timezone{color:#64748b;font-size:13px}.icon-button{border:0;background:transparent;color:#4a5568;font-size:24px;border-radius:8px;min-width:33px;min-height:35px}
 .icon-button:hover{background:#e7edf3}.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border:1px solid #dfe3e8;border-radius:10px;overflow:hidden;background:white}
 .weekday{text-align:center;padding:12px 4px;border-right:1px solid #e4e6ea;border-bottom:1px solid #e4e6ea;color:#48566b;font-weight:550}
-.weekday:nth-child(7){border-right:0}.day{min-height:124px;border-right:1px solid #e4e6ea;border-bottom:1px solid #e4e6ea;padding:9px 6px;overflow:hidden}
+.weekday:nth-child(7){border-right:0}.day{min-height:124px;border-right:1px solid #e4e6ea;border-bottom:1px solid #e4e6ea;padding:9px 6px;overflow:hidden;cursor:pointer}
 .day:nth-child(7n){border-right:0}.day.outside{background:#f4f4f3;color:#98a1ae}.day.today .day-number{background:#b4e5a7;border-radius:50%;padding:3px 7px;color:#24592d}
 .day-number{font-size:13px;display:inline-block;margin:0 0 10px 2px}.calendar-post{font-size:11px;background:#f0f6ff;border:1px solid #dbe7f8;border-radius:6px;padding:6px;margin-bottom:5px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;color:#2b578a}
 .table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:550px}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid #e5e9f0}th{color:#64748b}td:nth-child(2){max-width:320px;overflow-wrap:anywhere}
@@ -53,3 +53,13 @@ textarea{resize:vertical;min-height:175px;line-height:1.5}input[type=file]{paddi
 .preview-media{border:1px dashed #d3d9e2;border-radius:8px;padding:20px 10px;text-align:center;color:#536783;font-size:12px;overflow-wrap:anywhere}
 @media(max-width:960px){.sidebar{width:195px;flex-basis:195px}.main{padding:24px 16px}.day{min-height:110px}.calendar-post{font-size:10px}.composer-columns{grid-template-columns:1.3fr 1fr}}
 @media(max-width:680px){.app{display:block}.sidebar{width:100%;padding:12px;display:block;border-right:0;border-bottom:1px solid #e5e7eb}.brand{font-size:17px;padding:6px}.sidebar>.wide{width:auto}.nav{display:flex;margin:8px 0;gap:3px}.nav-item{padding:8px}.sidebar-heading,.accounts,#connect{display:none}.signout{float:right;margin:0}.main{padding:17px 12px}.top{align-items:flex-start}.top h1{font-size:20px}.header-actions{flex-wrap:wrap;justify-content:flex-end}.header-actions button{font-size:12px;padding:8px}.calendar-heading{gap:5px}.calendar-heading strong{font-size:14px;min-width:125px}.calendar-toolbar{align-items:flex-start}.calendar-grid{overflow-x:auto}.weekday{font-size:10px;padding:8px 1px}.day{min-height:80px;padding:5px 2px}.day-number{font-size:11px;margin-bottom:6px}.calendar-post{font-size:9px;padding:4px 2px}.overlay{padding:0}.composer{height:100vh;max-height:100vh;border-radius:0}.composer-columns{display:block}.composer-left{padding:16px}.composer-right{padding:16px;border-left:0;border-top:1px solid #e5e7eb}.composer-header{padding:13px 16px}.composer-footer{position:sticky;bottom:0;background:#fff;padding-bottom:12px}}
+
+.post-actions{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;white-space:normal}.post-actions button{padding:5px 7px;font-size:12px}.calendar-post .post-actions button{font-size:10px;padding:4px}
+
+#posting-dialog{border:1px solid #d9dde4;border-radius:12px;padding:24px;width:min(460px,95vw)}#posting-form{display:grid;gap:12px}#posting-form select{width:100%;padding:8px}.posting-day{display:flex;gap:10px;align-items:center;margin:8px 0}.posting-day span{flex:1}.posting-day input[type=time]{width:115px}.calendar-post[draggable=true]{cursor:grab}#use-profile-times{width:auto}
+
+.zone-search{display:flex;gap:8px}.zone-search input{flex:1;min-width:0}
+
+.text-format{display:flex;gap:6px}.text-format button{padding:6px 10px}
+
+#post-dialog{border:1px solid #d9dde4;border-radius:12px;padding:24px;width:min(650px,95vw);max-height:90vh;overflow:auto}#post-text,td:nth-child(2){white-space:pre-wrap;overflow-wrap:anywhere}#post-dialog::backdrop{background:#17203290}

@@ -42,7 +42,7 @@ export function createApp({ env = process.env, storage, fetchImpl = fetch } = {}
         const results = await processDuePosts({storage:store,publisher:accountPublisher(store,env,fetchImpl),maxJobs:10});
         return send(200,{processed:results.length,results});
       }
-      if (req.method === 'GET' && ['/', '/app.js','/style.css'].includes(url.pathname)) {
+      if (req.method === 'GET' && ['/', '/app.js','/style.css','/posting-times.js','/text-format.js'].includes(url.pathname)) {
         const filename = url.pathname==='/' ? 'index.html' : url.pathname.slice(1);
         res.writeHead(200,{'Content-Type':filename.endsWith('.html')?'text/html; charset=utf-8':filename.endsWith('.js')?'text/javascript':'text/css'});
         return res.end(await readFile(new URL('../public/'+filename,import.meta.url)));
@@ -72,7 +72,29 @@ export function createApp({ env = process.env, storage, fetchImpl = fetch } = {}
       if(!session) return send(401,{error:'Sign in required'});
       if(req.method!=='GET' && req.headers['x-csrf-token']!==session.csrf) return send(403,{error:'Invalid CSRF token'});
       if(req.method==='POST' && url.pathname==='/api/logout') {store.revokeSession(id);res.setHeader('Set-Cookie',cookie('',0));return send(200,{});}
-      if(req.method==='GET' && url.pathname==='/api/status') return send(200,{
+      if(req.method==='GET' && url.pathname==='/api/posting-times')return send(200,store.postingPreferences());
+       if(req.method==='POST' && url.pathname==='/api/posting-times'){
+         try{return send(200,store.savePostingPreferences(await body(req)));}catch(e){return send(400,{error:e.message});}
+       }
+       if(req.method==='POST' && url.pathname==='/api/day-jobs'){
+         if(!configured)return send(503,{error:'LinkedIn setup required'});
+         try{return send(201,store.scheduleDay(await body(req)));}catch(e){return send(400,{error:e.message});}
+       }
+       if(req.method==='POST' && url.pathname==='/api/move-job'){
+         try{return send(200,store.moveJob(await body(req)));}catch(e){return send(409,{error:e.message});}
+       }
+       if(req.method==='POST' && url.pathname==='/api/draft'){
+         const input=await body(req);
+         if(typeof input.id!=='string'||(input.schedule!==undefined&&typeof input.schedule!=='boolean'))return send(400,{error:'Invalid draft'});
+         if(input.schedule&&!configured)return send(503,{error:'LinkedIn setup required'});
+         try{return send(200,store.updateDraft(input));}catch(e){return send(409,{error:e.message});}
+       }
+       if(req.method==='POST' && url.pathname==='/api/job-action'){
+         const input=await body(req);
+         if(typeof input.id!=='string'||!['draft','delete'].includes(input.action))return send(400,{error:'Invalid action'});
+         try{return send(200,store.changeJobState(input.id,input.action));}catch(e){return send(409,{error:e.message});}
+       }
+       if(req.method==='GET' && url.pathname==='/api/status') return send(200,{
         setup:configured?null:'Set LINKEDIN_CLIENT_SECRET and a 32-byte base64 TOKEN_ENCRYPTION_KEY on the server',
         accounts:store.listAccounts().map(a=>({...a,status:Date.parse(a.expires_at)<=Date.now()?'Reconnect required':'Connected'})),jobs:store.listJobs()
       });

@@ -3,20 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LinkedIn Profile Scheduler</title>
+<title>Self-Hosted LinkedIn Multi-Profile Scheduler</title>
 <link rel="stylesheet" href="/style.css">
-<script src="/app.js" defer></script>
+<script src="/app.js" type="module"></script>
 </head>
 <body>
 <div class="app">
   <aside class="sidebar">
-    <div class="brand">LinkedIn Profile Scheduler</div>
+    <div class="brand">Self-Hosted LinkedIn Multi-Profile Scheduler</div>
     <button id="new-post" class="primary wide">+ New Post</button>
     <nav class="nav" aria-label="Main navigation">
       <button id="nav-publish" class="nav-item active">▦ Publish</button>
     </nav>
     <div class="sidebar-heading">LinkedIn profiles</div>
     <div id="accounts" class="accounts"></div>
+    <button id="posting-times" class="secondary wide">Posting times</button>
     <button id="connect" class="secondary wide">+ Connect profile</button>
     <button id="logout" class="signout" hidden>Sign out</button>
   </aside>
@@ -54,7 +55,7 @@
       <section id="list-section" class="panel" hidden>
         <h2>Scheduled posts</h2>
         <div class="table-wrap">
-          <table><thead><tr><th>Profile</th><th>Post</th><th>Scheduled for</th><th>Status</th></tr></thead>
+          <table><thead><tr><th>Profile</th><th>Post</th><th>Scheduled for</th><th>Status</th><th></th></tr></thead>
           <tbody id="jobs"></tbody></table>
         </div>
       </section>
@@ -73,14 +74,17 @@
         <div id="selected-profiles" class="selected-profiles" aria-label="Selected LinkedIn profiles"></div>
         <form id="schedule-form">
           <label for="content">Post</label>
+          <div class="text-format" role="toolbar" aria-label="Text formatting"><button id="format-bold" class="secondary" type="button">Bold</button><button id="format-italic" class="secondary" type="button">Italic</button><button id="format-bullets" class="secondary" type="button">Bullets</button></div>
           <textarea id="content" rows="9" maxlength="3000" placeholder="Start writing"></textarea>
           <div class="under"><span id="count">0 / 3000</span></div>
           <label for="attachment">Attachment</label>
           <input id="attachment" type="file" accept=".png,.jpg,.jpeg,.gif,.pdf,.doc,.docx,.ppt,.pptx,.mp4,.mov">
+          <label><input id="use-profile-times" type="checkbox" checked>Use profile times</label>
           <label for="date">Date and time</label>
           <input id="date" type="datetime-local" required>
           <div class="composer-footer">
             <span id="selected-count"></span>
+            <button id="save-draft" class="secondary" type="button" hidden>Save draft</button>
             <button id="schedule" class="primary" type="submit">Schedule Posts</button>
           </div>
         </form>
@@ -96,5 +100,7 @@
     </div>
   </section>
 </div>
+<dialog id="posting-dialog"><form id="posting-form"><h2>Posting times</h2><label for="zone-city">City</label><div class="zone-search"><input id="zone-city" type="search"><button id="zone-search" class="secondary" type="button">Search</button></div><label for="posting-zone">Time zone</label><select id="posting-zone" required></select><label for="posting-profile">LinkedIn profile</label><select id="posting-profile"></select><div id="posting-week"></div><button class="primary" type="submit">Save</button><button id="posting-close" class="secondary" type="button">Close</button></form></dialog>
+<dialog id="post-dialog" aria-labelledby="post-title"><h2 id="post-title">Post</h2><strong id="post-profile"></strong><p><span id="post-time"></span> · <span id="post-status"></span></p><p id="post-text"></p><p id="post-attachment"></p><button id="post-close" class="secondary" type="button">Close</button></dialog>
 </body>
 </html>

@@ -1,46 +1,56 @@
 # Hosting and scheduled publishing
 
-## Option A — Your own computer (easiest to try)
+**Choose ONE hosting route (OR).** The app's website is for creating jobs; a worker must execute them later. The public repository is self-hostable, not a ready-to-use hosted service.
 
-Run both the web server and worker as described in the README. Your computer **must stay awake** and both programs must stay running for scheduled posts to publish.
+## A. Your computer — simplest trial
 
-Uploaded files and the database are stored in the locations configured by `MEDIA_DIR` and `DATABASE_PATH`. Do not put these in a publicly shared folder.
+Run the website and scheduled publishing worker from the README. Keep **both programs running** and your computer awake.
 
-## Option B — A server that runs 24/7
+The uploaded files and database stay in the directories configured by `MEDIA_DIR` and `DATABASE_PATH`. If the computer sleeps or shuts down, scheduled publication stops until the required programs run again.
 
-Use a VPS or other hosting provider that supports **Node.js 22+**, persistent file storage, HTTPS, and two long-running processes.
+## B. Your own always-on server
 
-1. Install the code and Node.js on the server.
-2. Store `.env` **only on that server**, never in GitHub or your website's public directory.
-3. Choose a **persistent** `DATABASE_PATH` and `MEDIA_DIR`. Do not use temporary/ephemeral storage.
-4. Configure a strong `ADMIN_PASSWORD`, a randomly generated `TOKEN_ENCRYPTION_KEY`, and your own LinkedIn app credentials.
-5. Use a domain with HTTPS and set `APP_ORIGIN` and `LINKEDIN_REDIRECT_URI` to its exact HTTPS addresses.
-6. Add that redirect URI to your LinkedIn app's Auth tab.
-7. Run the web server and worker as managed services so they restart automatically after crashes/reboots.
-8. Restrict public access, protect backups, and verify that scheduling works with your laptop switched off.
+Use a server with Node.js 22+, persistent storage, HTTPS and the ability to run both long-lived processes.
 
-**A URL alone does not make publishing automatic.** The publishing worker or a cloud scheduler must actually run at the scheduled time.
+1. Install this repository's source and Node.js on the server.
+2. Store private configuration **on your server**, not in public GitHub files.
+3. Choose permanent database and upload directories.
+4. Use your own LinkedIn developer credentials, password and encryption key.
+5. Set the actual public HTTPS origin and OAuth callback URL; register that exact callback in your LinkedIn developer app.
+6. Run the website and publishing worker as services that restart after failure/reboot.
+7. Test a queued job, a run while the user's computer is off, and real publication only after approval.
 
-## Option C — Cloudflare-style worker (advanced)
+Your server/host may charge for uptime, storage and traffic. Have the AI inspect its current prices **before** setting up paid services.
 
-This repository includes a **Sites/Cloudflare-compatible adapter**:
+## C. ChatGPT Sites — hosted alternative
 
-- `src/sites-worker.mjs` — HTTP and scheduled handler.
-- `src/d1-store.mjs` and `infra/d1-schema.sql` — managed D1 database.
-- `MEDIA` R2 binding — private uploaded attachments.
-- `ASSETS` binding — static files from `public/`.
-- `infra/cron-worker.mjs` — optional minute-level scheduler trigger.
+Use ChatGPT **Work** to adapt and deploy the **current source from this public repository** into **your own Site**.
 
-A developer must provision D1, R2, bindings, environment secrets, static assets, and scheduled execution. This integration has automated tests but **has not been verified on a live cloud deployment**. Do not assume you can upload the repository and have an instantly working cloud app.
+1. Start in ordinary Chat to review requirements and confirm that Sites is available for your plan and workspace.
+2. When ready to build/deploy, switch to **Work** on ChatGPT web (or Work/Codex in the supported desktop app). Give it the repository URL and ask it to **reuse the current code** rather than redesign the scheduler.
+3. Work must configure **your own** Site data storage, private media storage, LinkedIn redirect URL, environment settings and publishing trigger as required by this source. It should verify the deployed integration before claiming success.
+4. Connect your own LinkedIn profiles and test both scheduling and subsequent cloud publishing with your computer off.
 
-Required private secrets: `ADMIN_PASSWORD`, `LINKEDIN_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY`, and (if using the external trigger) `SCHEDULER_TRIGGER_SECRET`. Set `LINKEDIN_CLIENT_ID`, `APP_ORIGIN`, `LINKEDIN_REDIRECT_URI`, and `LINKEDIN_VERSION` appropriately.
+**Important:** The included Sites/Cloudflare-compatible modules are a starting point, not proof that uploading the public repository automatically gives you a working Site. The software must be configured and tested for the new deployment.
 
-## Safety before sharing your hosted URL
+ChatGPT Sites building/editing counts toward Codex usage; hosting and storage have separate terms/limits. See [Sites documentation](https://help.openai.com/en/articles/20001339-creating-and-using-chatgpt-sites) for current availability and usage.
 
-- This is **one shared admin login**, not a multi-tenant SaaS.
-- Anyone who knows the URL **and admin password** can schedule posts on every connected profile.
-- Use HTTPS, a unique strong password, private database/media storage, and backups.
-- Protect your encryption key: losing it makes stored LinkedIn tokens unreadable.
-- Never expose Client Secrets or access tokens in browser JavaScript, logs, screenshots, or public GitHub commits.
-- Verify the scheduler and any cloud trigger using test data before publishing to real profiles.
-- Keep up with LinkedIn API version changes and reauthorize expired accounts.
+### Optional: Schedule from ordinary ChatGPT chats
+
+A plugin is **not required** to use the website. If you want ordinary ChatGPT chats to schedule posts, ask Work to add **your own Site-hosted plugin** with the read/schedule actions your deployment needs. Then install/connect that plugin to your ChatGPT account and test it in an ordinary Chat.
+
+This does not give you access to somebody else's deployed Site or installed plugin. See [Site-hosted plugin documentation](https://help.openai.com/en/articles/20001547-hosting-a-plugin-with-chatgpt-sites).
+
+## Developer option: Cloudflare-compatible worker
+
+The repository also contains `src/sites-worker.mjs`, `src/d1-store.mjs`, `infra/d1-schema.sql`, and a sample minute trigger `infra/cron-worker.mjs`. A developer or AI must provision and connect the correct bindings, upload storage, secrets and scheduling system for their chosen hosting account.
+
+The included sample is **not** a preconfigured production deployment for other users. It does not grant access to anyone else's accounts, database or credentials.
+
+## Privacy and permissions
+
+- Each person needs **their own** LinkedIn developer app and must authorize each personal profile they control.
+- This software is for **personal LinkedIn profiles only**, not LinkedIn Company Pages.
+- Keep personal credentials, access tokens, database and uploaded files private to the user's installation.
+- The standalone version uses a single admin login; the hosted Site's human access may be different. Do not add another password solely because another deployment used one.
+- Confirm background publication separately from job creation before declaring the deployment complete.

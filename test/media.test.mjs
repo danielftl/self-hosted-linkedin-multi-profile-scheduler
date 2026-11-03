@@ -137,3 +137,28 @@ test('local image attachment survives scheduling, publishes, then is deleted',as
     assert.equal(published,1);
   }finally{await new Promise(resolve=>server.close(resolve));store.close();rmSync(dir,{recursive:true,force:true});}
 });
+
+test('one to twenty image posts upload in order and publish exactly once; failed upload never publishes',async()=>{
+ const {publishLinkedInImages}=await import('../src/linkedin-media.mjs');
+ for(const count of [1,2,20]){
+  let uploads=0,posts=0;const loaded=[];
+  const files=Array.from({length:count},(_,i)=>({id:String(i),kind:'image',mime:'image/png',filename:i+'.png',size:PNG.length}));
+  const fetchImpl=async(url,options)=>{
+   if(url.includes('initializeUpload'))return new Response(JSON.stringify({value:{image:'urn:li:image:'+uploads,uploadUrl:'https://www.linkedin.com/dms-uploads/'+uploads}}));
+   if(options.method==='PUT'){uploads++;assert.deepEqual(Buffer.from(options.body),PNG);return new Response('',{status:201});}
+   posts++;const post=JSON.parse(options.body);
+   if(count===1){assert.equal(post.content.media.id,'urn:li:image:0');assert.equal(post.content.multiImage,undefined);}
+   else assert.deepEqual(post.content.multiImage.images,files.map((_,i)=>({id:'urn:li:image:'+i})));
+   return new Response('',{status:201,headers:{'x-restli-id':'posted'}});
+  };
+  const options={accessToken:'fake',personUrn:'urn:li:person:offline',text:'',attachments:files,loadBytes:async f=>{loaded.push(f.id);return PNG;},fetchImpl};
+  assert.equal((await publishLinkedInImages(options)).postId,'posted');assert.equal(posts,1);assert.equal(uploads,count);assert.deepEqual(loaded,files.map(f=>f.id));
+ }
+ let posts=0;
+ const options={accessToken:'fake',personUrn:'urn:li:person:offline',attachments:[{kind:'image',size:PNG.length},{kind:'image',size:PNG.length}],loadBytes:async()=>PNG,fetchImpl:async(url,init)=>{
+  if(url.includes('initializeUpload'))return new Response(JSON.stringify({value:{image:'urn:li:image:a',uploadUrl:'https://www.linkedin.com/dms-uploads/a'}}));
+  if(init.method==='PUT')return new Response('',{status:500});posts++;throw Error('Must not publish');
+ }};
+ await assert.rejects(()=>publishLinkedInImages(options),/HTTP 500/);assert.equal(posts,0);
+ for(const files of [[],Array(21).fill({kind:'image'}),[{kind:'image'},{kind:'document'}]])await assert.rejects(()=>publishLinkedInImages({...options,attachments:files}),/1–20/);
+});

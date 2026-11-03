@@ -63,3 +63,11 @@ textarea{resize:vertical;min-height:175px;line-height:1.5}input[type=file]{paddi
 .text-format{display:flex;gap:6px}.text-format button{padding:6px 10px}
 
 #post-dialog{border:1px solid #d9dde4;border-radius:12px;padding:24px;width:min(650px,95vw);max-height:90vh;overflow:auto}#post-text,td:nth-child(2){white-space:pre-wrap;overflow-wrap:anywhere}#post-dialog::backdrop{background:#17203290}
+
+.preview-media.image-preview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:0;border:0;text-align:left}.preview-media.image-preview img{display:block;width:100%;height:auto;max-height:300px;object-fit:contain;border-radius:6px}.preview-media.image-preview img:only-child{grid-column:1/-1}
+
+#schedule-warning{color:#b42318;margin:0;white-space:pre-line}
+
+#schedule-rows{display:grid;gap:12px}.profile-schedule{min-width:0;border:1px solid #d8dee7;border-radius:9px;padding:12px;display:grid;gap:8px}.profile-schedule label{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.profile-schedule input[type=checkbox]{width:auto}.profile-schedule input[type=date],.profile-schedule input[type=time]{padding:8px;border:1px solid #d8dee7;border-radius:6px;max-width:100%}.schedule-error{color:#b42318}
+
+.signout{margin-top:auto;background:transparent;border:0;color:#64748b;text-align:left;padding:11px}

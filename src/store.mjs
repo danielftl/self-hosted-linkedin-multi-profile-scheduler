@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import crypto from 'node:crypto';
-import {defaultPreferences,validatePreferences,resolveDay} from '../public/posting-times.js';
+import {defaultPreferences,validatePreferences,resolveDay,resolveProfileRows} from '../public/posting-times.js';
 
 export class Store {
   constructor(filename) {
@@ -54,6 +54,12 @@ export class Store {
       );
       CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
       CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS job_media (
+        job_id TEXT NOT NULL REFERENCES jobs(id),
+        attachment_id TEXT NOT NULL UNIQUE REFERENCES attachments(id),
+        position INTEGER NOT NULL,
+        PRIMARY KEY (job_id,position)
+      );
     `);
   }
   postingPreferences(){
@@ -62,57 +68,68 @@ export class Store {
   }
   savePostingPreferences(input){
     const value=validatePreferences(input),ids=new Set(this.listAccounts().map(a=>a.id));
-    if(Object.keys(value.profiles).some(id=>!ids.has(id)))throw Error('Unknown profile');
+    if([...Object.keys(value.profiles),...Object.keys(value.profileZones)].some(id=>!ids.has(id)))
+      throw Error('Unknown profile');
     this.db.prepare("INSERT INTO settings(key,value) VALUES('posting_preferences',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value")
-      .run(JSON.stringify(value));return value;
+      .run(JSON.stringify(value));
+    return value;
+  }
+  scheduleProfileRows({rows,content,attachmentIds={}}){
+    const plan=resolveProfileRows(this.postingPreferences(),rows);
+    return {ids:this.scheduleBatch({content,attachmentIds,...plan,scheduledAt:Object.values(plan.scheduledTimes)[0]}),skipped:plan.skipped};
   }
   scheduleDay(input){
-    const resolved=resolveDay(this.postingPreferences(),input.accountIds,input.day);
-    return {ids:this.scheduleBatch({...input,...resolved,scheduledAt:Object.values(resolved.scheduledTimes)[0]}),skipped:resolved.skipped};
+    const plan=resolveDay(this.postingPreferences(),input.accountIds,input.day);
+    return {ids:this.scheduleBatch({...input,...plan,scheduledAt:Object.values(plan.scheduledTimes)[0]}),skipped:plan.skipped};
   }
   moveJob({id,day}){
     const job=this.db.prepare("SELECT account_id FROM jobs WHERE id=? AND status='scheduled'").get(id);
     if(!job)throw Error('Post unavailable or already publishing');
-    const resolved=resolveDay(this.postingPreferences(),[job.account_id],day);
-    const time=resolved.scheduledTimes[job.account_id];
-    const row=this.db.prepare("UPDATE jobs SET scheduled_at=?,next_attempt=?,attempts=0,last_error=NULL WHERE id=? AND status='scheduled' RETURNING id,scheduled_at").get(time,time,id);
+    const plan=resolveDay(this.postingPreferences(),[job.account_id],day);
+    const time=plan.scheduledTimes[job.account_id];
+    const row=this.db.prepare("UPDATE jobs SET scheduled_at=?,next_attempt=?,attempts=0,last_error=NULL WHERE id=? AND status='scheduled' RETURNING id,scheduled_at")
+      .get(time,time,id);
     if(!row)throw Error('Post unavailable or already publishing');
     return row;
   }
   changeJobState(id,action){
     if(!['draft','delete'].includes(action))throw Error('Invalid action');
     const allowed=action==='draft'?"'scheduled','failed','uncertain'":"'scheduled','draft','failed','uncertain','published'";
-    const row=this.db.prepare(`UPDATE jobs SET status=?,lease_until=NULL WHERE id=? AND status IN (${allowed}) RETURNING id,status`)
+    const row=this.db.prepare("UPDATE jobs SET status=?,lease_until=NULL WHERE id=? AND status IN ("+allowed+") RETURNING id,status")
       .get(action==='draft'?'draft':'deleted',id);
     if(!row)throw Error('Post unavailable or already publishing');
     return row;
   }
-  updateDraft({id,content,scheduledAt,schedule=false,attachmentId}){
+  updateDraft({id,content,scheduledAt,schedule=false,attachmentId},expectedStatus='draft'){
+    if(!['draft','scheduled'].includes(expectedStatus))throw Error('Post unavailable');
     this.db.exec('BEGIN IMMEDIATE');
     try{
-      const job=this.db.prepare("SELECT * FROM jobs WHERE id=? AND status='draft'").get(id);
-      if(!job)throw Error('Draft unavailable');
-      const existing=this.attachmentForJob(id);
-      if(typeof content!=='string'||content.length>3000||(!content.trim()&&!existing&&!attachmentId))throw Error('Post content required');
+      const job=this.db.prepare('SELECT * FROM jobs WHERE id=? AND status=?').get(id,expectedStatus);
+      if(!job)throw Error(expectedStatus==='scheduled'?'Post unavailable or already publishing':'Draft unavailable');
+      if(typeof content!=='string'||content.length>3000)throw Error('Invalid post');
+      const existing=this.attachmentsForJob(id);
+      const replacing=attachmentId!==undefined;
+      const media=replacing?this.validateAttachments(attachmentId,job.account_id):[];
+      if(!content.trim()&&!(replacing?media.length:existing.length))throw Error('Post content required');
       if(schedule){
         if(!Number.isFinite(Date.parse(scheduledAt))||Date.parse(scheduledAt)<=Date.now())throw Error('Choose a future date and time');
         const account=this.getAccount(job.account_id);
         if(!account||Date.parse(account.expires_at)<=Date.now())throw Error('Reconnect selected profile');
       }
-      if(attachmentId){
-        const file=this.getAttachment(attachmentId);
-        if(!file||file.account_id!==job.account_id||file.job_id||file.deleted_at)throw Error('Invalid attachment');
-        this.db.prepare('UPDATE attachments SET job_id=NULL,created_at=? WHERE job_id=?').run(new Date().toISOString(),id);
-        const a=this.db.prepare('UPDATE attachments SET job_id=? WHERE id=? AND job_id IS NULL AND deleted_at IS NULL')
-          .run(id,attachmentId);
-        if(a.changes!==1)throw Error('Invalid attachment');
+      if(replacing){
+        const now=new Date().toISOString();
+        this.db.prepare('UPDATE attachments SET job_id=NULL,created_at=? WHERE job_id=?').run(now,id);
+        this.db.prepare('UPDATE attachments SET created_at=? WHERE id IN (SELECT attachment_id FROM job_media WHERE job_id=?)').run(now,id);
+        this.db.prepare('DELETE FROM job_media WHERE job_id=?').run(id);
+        for(const [position,attachmentId] of media.entries())
+          this.db.prepare('INSERT INTO job_media(job_id,attachment_id,position) VALUES(?,?,?)').run(id,attachmentId,position);
       }
       const time=schedule?new Date(scheduledAt).toISOString():job.scheduled_at;
-      const row=this.db.prepare(`UPDATE jobs SET content=?,scheduled_at=?,next_attempt=?,status=?,attempts=0,
-        last_error=NULL,remote_post_id=NULL,lease_until=NULL WHERE id=? AND status='draft' RETURNING id,status`)
-        .get(content,time,time,schedule?'scheduled':'draft',id);
-      if(!row)throw Error('Draft unavailable');
-      this.db.exec('COMMIT');return row;
+      const row=this.db.prepare("UPDATE jobs SET content=?,scheduled_at=?,next_attempt=?,status=?,attempts=0,last_error=NULL,remote_post_id=NULL,lease_until=NULL WHERE id=? AND status=? RETURNING id,status")
+        .get(content,time,time,schedule?'scheduled':'draft',id,expectedStatus);
+      if(!row)throw Error('Post unavailable or already publishing');
+      this.db.exec('COMMIT');
+      return row;
     }catch(e){this.db.exec('ROLLBACK');throw e;}
   }
   close() { this.db.close(); }
@@ -172,71 +189,81 @@ export class Store {
     if(!id)return null;
     return this.db.prepare('SELECT * FROM attachments WHERE id=?').get(id)??null;
   }
-  attachmentForJob(jobId) {
-    return this.db.prepare('SELECT * FROM attachments WHERE job_id=?').get(jobId)??null;
+  attachmentsForJob(jobId){
+    return this.db.prepare('SELECT a.*,m.position AS media_position FROM attachments a JOIN job_media m ON m.attachment_id=a.id WHERE m.job_id=? UNION ALL SELECT a.*,0 AS media_position FROM attachments a WHERE a.job_id=? ORDER BY media_position')
+      .all(jobId,jobId);
+  }
+  attachmentForJob(jobId){return this.attachmentsForJob(jobId)[0]??null;}
+  validateAttachments(value,accountId){
+    const ids=value===undefined?[]:Array.isArray(value)?value:[value];
+    if(ids.length>20||new Set(ids).size!==ids.length||ids.some(id=>typeof id!=='string'||!id))
+      throw Error('Select 1–20 images or one document/video');
+    const files=[];
+    for(const id of ids){
+      const file=this.getAttachment(id);
+      const used=this.db.prepare('SELECT attachment_id FROM job_media WHERE attachment_id=?').get(id);
+      if(!file||file.account_id!==accountId||file.job_id||file.deleted_at||used)throw Error('Invalid attachment');
+      files.push(file);
+    }
+    if(files.length>1&&files.some(f=>f.kind!=='image'))throw Error('Multiple attachments must all be images');
+    return ids;
   }
   markAttachmentDeleted(id) {
     this.db.prepare('UPDATE attachments SET deleted_at=? WHERE id=?').run(new Date().toISOString(),id);
   }
-  mediaForCleanup(cutoff) {
-    return this.db.prepare(`SELECT attachments.id FROM attachments
-      LEFT JOIN jobs ON jobs.id=attachments.job_id
-      WHERE attachments.deleted_at IS NULL AND
-      ((attachments.job_id IS NULL AND attachments.created_at<?) OR jobs.status IN ('published','deleted')) LIMIT 100`)
+  mediaForCleanup(cutoff){
+    return this.db.prepare("SELECT a.id FROM attachments a LEFT JOIN job_media m ON m.attachment_id=a.id LEFT JOIN jobs j ON j.id=COALESCE(a.job_id,m.job_id) WHERE a.deleted_at IS NULL AND ((a.job_id IS NULL AND m.job_id IS NULL AND a.created_at<?) OR j.status IN ('published','deleted')) LIMIT 100")
       .all(cutoff.toISOString());
   }
-  schedule({ accountId, content, scheduledAt, attachmentId, id = crypto.randomUUID() }) {
-    if (typeof content !== 'string' || content.length > 3000 || (!content.trim()&&!attachmentId)) throw new Error('Post content required');
-    if (!Number.isFinite(Date.parse(scheduledAt))) throw new Error('Invalid scheduled date');
-    if (!this.getAccount(accountId)) throw new Error('Unknown account');
-    scheduledAt = new Date(scheduledAt).toISOString();
+  schedule({accountId,content,scheduledAt,attachmentId,id=crypto.randomUUID()}){
+    if(typeof content!=='string'||content.length>3000)throw Error('Invalid post content');
+    if(!Number.isFinite(Date.parse(scheduledAt)))throw Error('Invalid scheduled date');
+    if(!this.getAccount(accountId))throw Error('Unknown account');
+    const media=this.validateAttachments(attachmentId,accountId);
+    if(!content.trim()&&!media.length)throw Error('Post content required');
+    const time=new Date(scheduledAt).toISOString();
     this.db.exec('BEGIN IMMEDIATE');
-    try {
-      if(attachmentId) {
-        const file=this.getAttachment(attachmentId);
-        if(!file||file.account_id!==accountId||file.job_id||file.deleted_at)throw Error('Invalid attachment');
-      }
-      this.db.prepare(`INSERT INTO jobs(id,account_id,content,scheduled_at,next_attempt,status)
-        VALUES(?,?,?,?,?,'scheduled')`).run(id, accountId, content, scheduledAt, scheduledAt);
-      if(attachmentId) this.db.prepare('UPDATE attachments SET job_id=? WHERE id=?').run(id,attachmentId);
-      this.db.exec('COMMIT');
-      return id;
+    try{
+      this.db.prepare("INSERT INTO jobs(id,account_id,content,scheduled_at,next_attempt,status) VALUES(?,?,?,?,?,'scheduled')")
+        .run(id,accountId,content,time,time);
+      for(const [position,fileId] of media.entries())
+        this.db.prepare('INSERT INTO job_media(job_id,attachment_id,position) VALUES(?,?,?)')
+          .run(id,fileId,position);
+      this.db.exec('COMMIT');return id;
     }catch(e){this.db.exec('ROLLBACK');throw e;}
   }
-  scheduleBatch({accountIds,content,scheduledAt,attachmentIds={},scheduledTimes={}}) {
+  scheduleBatch({accountIds,content,scheduledAt,attachmentIds={},scheduledTimes={}}){
     if(!Array.isArray(accountIds)||!accountIds.length||accountIds.length>50||new Set(accountIds).size!==accountIds.length)
       throw Error('Select valid profiles');
-    if(typeof content!=='string'||content.length>3000||(!content.trim()&&!accountIds.every(id=>attachmentIds[id])))
+    if(typeof content!=='string'||content.length>3000||(!content.trim()&&!accountIds.every(id=>Array.isArray(attachmentIds[id])?attachmentIds[id].length:attachmentIds[id])))
       throw Error('Post content required');
     if(!Number.isFinite(Date.parse(scheduledAt))||Date.parse(scheduledAt)<=Date.now())
       throw Error('Choose a future date and time');
-    const time=new Date(scheduledAt).toISOString();
-    for(const id of accountIds)if(!Number.isFinite(Date.parse(scheduledTimes[id]||scheduledAt))||Date.parse(scheduledTimes[id]||scheduledAt)<=Date.now())throw Error('Choose a future date and time');
+    for(const id of accountIds)
+      if(!Number.isFinite(Date.parse(scheduledTimes[id]||scheduledAt))||Date.parse(scheduledTimes[id]||scheduledAt)<=Date.now())
+        throw Error('Choose a future date and time');
     const ids=[];
     this.db.exec('BEGIN IMMEDIATE');
     try{
       for(const accountId of accountIds){
-        const selectedTime=new Date(scheduledTimes[accountId]||scheduledAt).toISOString();
+        const time=new Date(scheduledTimes[accountId]||scheduledAt).toISOString();
         const account=this.getAccount(accountId);
         if(!account||Date.parse(account.expires_at)<=Date.now())throw Error('Reconnect selected profile');
-        const attachmentId=attachmentIds[accountId];
-        if(attachmentId){
-          const file=this.getAttachment(attachmentId);
-          if(!file||file.account_id!==accountId||file.job_id||file.deleted_at)throw Error('Invalid attachment');
-        }
+        const media=this.validateAttachments(attachmentIds[accountId],accountId);
         const id=crypto.randomUUID();
-        this.db.prepare(`INSERT INTO jobs(id,account_id,content,scheduled_at,next_attempt,status)
-          VALUES(?,?,?,?,?,'scheduled')`).run(id,accountId,content,selectedTime,selectedTime);
-        if(attachmentId)this.db.prepare('UPDATE attachments SET job_id=? WHERE id=?').run(id,attachmentId);
+        this.db.prepare("INSERT INTO jobs(id,account_id,content,scheduled_at,next_attempt,status) VALUES(?,?,?,?,?,'scheduled')")
+          .run(id,accountId,content,time,time);
+        for(const [position,fileId] of media.entries())
+          this.db.prepare('INSERT INTO job_media(job_id,attachment_id,position) VALUES(?,?,?)')
+            .run(id,fileId,position);
         ids.push(id);
       }
       this.db.exec('COMMIT');return ids;
     }catch(e){this.db.exec('ROLLBACK');throw e;}
   }
-  listJobs() {
-    return this.db.prepare(`SELECT jobs.id,jobs.account_id,jobs.content,jobs.scheduled_at,jobs.status,jobs.attempts,jobs.last_error,jobs.remote_post_id,
-      attachments.filename AS attachment_name FROM jobs LEFT JOIN attachments ON attachments.job_id=jobs.id
-      WHERE jobs.status<>'deleted' ORDER BY scheduled_at`).all();
+  listJobs(){
+    return this.db.prepare("SELECT j.id,j.account_id,j.content,j.scheduled_at,j.status,j.attempts,j.last_error,j.remote_post_id, (SELECT group_concat(filename, ' | ') FROM (SELECT a.filename FROM attachments a LEFT JOIN job_media m ON m.attachment_id=a.id WHERE a.job_id=j.id OR m.job_id=j.id ORDER BY COALESCE(m.position,0))) AS attachment_name FROM jobs j WHERE j.status<>'deleted' ORDER BY j.scheduled_at")
+      .all();
   }
   async claimDue(now) {
     const timestamp = now.toISOString();

@@ -5,7 +5,7 @@ import { Store } from './store.mjs';
 import { authorizationUrl, makeOAuthState, exchangeAuthorizationCode, getLinkedInMember, encryptToken } from './linkedin.mjs';
 import { processDuePosts } from './scheduler.mjs';
 import { accountPublisher } from './worker.mjs';
-import { validateUpload,saveMedia,deleteMedia,newMediaId,MAX_UPLOAD_BYTES } from './media.mjs';
+import { validateUpload,saveMedia,readMedia,deleteMedia,newMediaId,MAX_UPLOAD_BYTES } from './media.mjs';
 
 export function createApp({ env = process.env, storage, fetchImpl = fetch } = {}) {
   const store = storage ?? new Store(env.DATABASE_PATH || 'scheduler.sqlite');
@@ -72,9 +72,24 @@ export function createApp({ env = process.env, storage, fetchImpl = fetch } = {}
       if(!session) return send(401,{error:'Sign in required'});
       if(req.method!=='GET' && req.headers['x-csrf-token']!==session.csrf) return send(403,{error:'Invalid CSRF token'});
       if(req.method==='POST' && url.pathname==='/api/logout') {store.revokeSession(id);res.setHeader('Set-Cookie',cookie('',0));return send(200,{});}
+      if(req.method==='GET' && url.pathname.startsWith('/api/media/')){
+        const mediaId=decodeURIComponent(url.pathname.slice('/api/media/'.length));
+        const file=store.getAttachment(mediaId);
+        if(!file||file.deleted_at||file.kind!=='image'||!['image/png','image/jpeg','image/gif'].includes(file.mime))
+          return send(404,{error:'Not found'});
+        try{
+          const bytes=await readMedia(env.MEDIA_DIR||'media',mediaId);
+          res.writeHead(200,{'Content-Type':file.mime,'Cache-Control':'private, no-store'});
+          return res.end(bytes);
+        }catch{return send(404,{error:'Not found'});}
+      }
       if(req.method==='GET' && url.pathname==='/api/posting-times')return send(200,store.postingPreferences());
        if(req.method==='POST' && url.pathname==='/api/posting-times'){
          try{return send(200,store.savePostingPreferences(await body(req)));}catch(e){return send(400,{error:e.message});}
+       }
+       if(req.method==='POST' && url.pathname==='/api/profile-jobs'){
+         if(!configured)return send(503,{error:'LinkedIn setup required'});
+         try{return send(201,store.scheduleProfileRows(await body(req)));}catch(e){return send(400,{error:e.message});}
        }
        if(req.method==='POST' && url.pathname==='/api/day-jobs'){
          if(!configured)return send(503,{error:'LinkedIn setup required'});
@@ -82,6 +97,13 @@ export function createApp({ env = process.env, storage, fetchImpl = fetch } = {}
        }
        if(req.method==='POST' && url.pathname==='/api/move-job'){
          try{return send(200,store.moveJob(await body(req)));}catch(e){return send(409,{error:e.message});}
+       }
+       if(req.method==='POST' && url.pathname==='/api/edit-post'){
+         if(!configured)return send(503,{error:'LinkedIn setup required'});
+         const input=await body(req);
+         if(typeof input.id!=='string')return send(400,{error:'Invalid post'});
+         try{return send(200,store.updateDraft({...input,schedule:true},'scheduled'));}
+         catch(e){return send(409,{error:e.message});}
        }
        if(req.method==='POST' && url.pathname==='/api/draft'){
          const input=await body(req);
@@ -96,7 +118,12 @@ export function createApp({ env = process.env, storage, fetchImpl = fetch } = {}
        }
        if(req.method==='GET' && url.pathname==='/api/status') return send(200,{
         setup:configured?null:'Set LINKEDIN_CLIENT_SECRET and a 32-byte base64 TOKEN_ENCRYPTION_KEY on the server',
-        accounts:store.listAccounts().map(a=>({...a,status:Date.parse(a.expires_at)<=Date.now()?'Reconnect required':'Connected'})),jobs:store.listJobs()
+        accounts:store.listAccounts().map(a=>({...a,status:Date.parse(a.expires_at)<=Date.now()?'Reconnect required':'Connected'})),
+        jobs:store.listJobs().map(job=>{
+          if(!['draft','scheduled'].includes(job.status))return job;
+          const files=store.attachmentsForJob(job.id);
+          return {...job,attachments:files.filter(f=>!f.deleted_at).map(({id,filename,mime,kind})=>({id,filename,mime,kind}))};
+        })
       });
       if(req.method==='POST' && url.pathname==='/api/connect') {
         if(!configured) return send(503,{error:'LinkedIn setup required'});

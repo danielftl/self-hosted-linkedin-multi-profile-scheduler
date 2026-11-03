@@ -28,7 +28,7 @@ function safeUploadUrl(value) {
   ))throw Error('Unexpected LinkedIn upload destination');
   return url.toString();
 }
-export async function publishLinkedInMedia({
+async function uploadLinkedInMedia({
   accessToken,personUrn,text='',attachment,bytes,version='202610',fetchImpl=fetch
 }) {
   if(!accessToken||!/^urn:li:person:[A-Za-z0-9_-]+$/.test(personUrn))throw Error('Invalid account');
@@ -79,17 +79,35 @@ export async function publishLinkedInMedia({
       body:bytes
     });
   }
+  return urn;
+}
+async function createMediaPost({accessToken,personUrn,text,content,version,fetchImpl}){
   const post={
     author:personUrn,commentary:text,visibility:'PUBLIC',
     distribution:{feedDistribution:'MAIN_FEED',targetEntities:[],thirdPartyDistributionChannels:[]},
-    content:{media:{id:urn,...(attachment.kind!=='image'?{title:attachment.filename}:{})}},
-    lifecycleState:'PUBLISHED',isReshareDisabledByAuthor:false
+    content,lifecycleState:'PUBLISHED',isReshareDisabledByAuthor:false
   };
   const result=await api(fetchImpl,POSTS,{
-    method:'POST',headers:headers(accessToken,version,{'Content-Type':'application/json'}),
-    body:JSON.stringify(post)
+    method:'POST',headers:headers(accessToken,version,{'Content-Type':'application/json'}),body:JSON.stringify(post)
   });
   const postId=result.headers.get('x-restli-id')??result.body.id;
   if(!postId)throw Error('LinkedIn publication ID missing; outcome uncertain');
   return {postId};
+}
+export async function publishLinkedInMedia(options){
+  const {attachment,version='202610',fetchImpl=fetch}=options;
+  const urn=await uploadLinkedInMedia({...options,version,fetchImpl});
+  return createMediaPost({...options,version,fetchImpl,content:{media:{id:urn,...(attachment.kind!=='image'?{title:attachment.filename}:{})}}});
+}
+export async function publishLinkedInImages({attachments,loadBytes,...options}){
+  if(!Array.isArray(attachments)||attachments.length<1||attachments.length>20||attachments.some(f=>f.kind!=='image'))throw Error('Select 1–20 images');
+  const {version='202610',fetchImpl=fetch}=options;
+  const images=[];
+  for(const attachment of attachments){
+    const bytes=await loadBytes(attachment);
+    const id=await uploadLinkedInMedia({...options,attachment,bytes,version,fetchImpl});
+    images.push({id});
+  }
+  const content=images.length===1?{media:images[0]}:{multiImage:{images}};
+  return createMediaPost({...options,version,fetchImpl,content});
 }

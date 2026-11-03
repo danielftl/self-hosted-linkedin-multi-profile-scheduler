@@ -1,6 +1,6 @@
 import { Store } from './store.mjs';
 import { decryptToken, publishLinkedInText } from './linkedin.mjs';
-import { publishLinkedInMedia } from './linkedin-media.mjs';
+import { publishLinkedInMedia,publishLinkedInImages } from './linkedin-media.mjs';
 import { readMedia, deleteMedia } from './media.mjs';
 import { processDuePosts } from './scheduler.mjs';
 export function accountPublisher(store, env, fetchImpl=fetch) {
@@ -11,16 +11,21 @@ export function accountPublisher(store, env, fetchImpl=fetch) {
     try { token=decryptToken(account.encrypted_token,env.TOKEN_ENCRYPTION_KEY); }
     catch { const e=Error('Token unavailable');e.status=400;throw e; }
     try {
-      const attachment=store.attachmentForJob(job.id);
-      if(!attachment)return await publishLinkedInText({accessToken:token,personUrn:account.person_urn,text:job.content,
+      const attachments=store.attachmentsForJob(job.id);
+      if(!attachments.length)return await publishLinkedInText({accessToken:token,personUrn:account.person_urn,text:job.content,
         version:env.LINKEDIN_VERSION||'202610',fetchImpl});
       const dir=env.MEDIA_DIR||'media';
-      const bytes=await readMedia(dir,attachment.id);
-      const result=await publishLinkedInMedia({accessToken:token,personUrn:account.person_urn,
-        text:job.content,attachment,bytes,version:env.LINKEDIN_VERSION||'202610',fetchImpl});
+      const options={accessToken:token,personUrn:account.person_urn,text:job.content,
+        version:env.LINKEDIN_VERSION||'202610',fetchImpl};
+      const loadBytes=async attachment=>readMedia(dir,attachment.id);
+      const result=attachments.every(file=>file.kind==='image')
+        ?await publishLinkedInImages({...options,attachments,loadBytes})
+        :await publishLinkedInMedia({...options,attachment:attachments[0],bytes:await loadBytes(attachments[0])});
       return {...result,cleanup:async()=>{
-        await deleteMedia(dir,attachment.id);
-        store.markAttachmentDeleted(attachment.id);
+        for(const attachment of attachments){
+          await deleteMedia(dir,attachment.id);
+          store.markAttachmentDeleted(attachment.id);
+        }
       }};
     } catch(e) {if(e.status===401) store.markAccountExpired(account.id);throw e;}
   };

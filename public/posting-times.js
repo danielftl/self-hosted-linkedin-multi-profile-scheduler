@@ -1,5 +1,5 @@
 export const DEFAULT_ZONE='Asia/Singapore';
-export const defaultPreferences=()=>({timeZone:DEFAULT_ZONE,profiles:{}});
+export const defaultPreferences=()=>({timeZone:DEFAULT_ZONE,profiles:{},profileZones:{}});
 export function validatePreferences(input){
  if(!input||typeof input!=='object'||typeof input.timeZone!=='string')throw Error('Choose a time zone');
  let timeZone;try{timeZone=new Intl.DateTimeFormat('en',{timeZone:input.timeZone}).resolvedOptions().timeZone;}catch{throw Error('Choose a valid time zone');}
@@ -13,7 +13,13 @@ export function validatePreferences(input){
    profiles[id][day]=time;
   }
  }
- return {timeZone,profiles};
+ const profileZones={};
+ if(input.profileZones!==undefined&&(!input.profileZones||typeof input.profileZones!=='object'||Array.isArray(input.profileZones)))throw Error('Choose a valid time zone');
+ for(const [id,zone] of Object.entries(input.profileZones||{})){
+  if(typeof zone!=='string')throw Error('Choose a valid time zone');
+  try{profileZones[id]=new Intl.DateTimeFormat('en',{timeZone:zone}).resolvedOptions().timeZone;}catch{throw Error('Choose a valid time zone');}
+ }
+ return {timeZone,profiles,profileZones};
 }
 export function localParts(instant,zone=DEFAULT_ZONE){
  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(instant)).map(x=>[x.type,x.value]));
@@ -36,12 +42,42 @@ export function zonedInstant(day,time,zone=DEFAULT_ZONE){
  if(matches.length!==1)throw Error('Choose another time: daylight-saving time is missing or ambiguous');
  return new Date(matches[0]).toISOString();
 }
-export function resolveDay(preferences,ids,day,now=Date.now()){
- if(!Array.isArray(ids)||!ids.length||ids.length>50||new Set(ids).size!==ids.length||ids.some(x=>typeof x!=='string'))throw Error('Select valid profiles');
+export function profileZone(preferences,id){return preferences.profileZones?.[id]||DEFAULT_ZONE;}
+export function resolveProfileRows(preferences,rows,now=Date.now()){
+ if(!Array.isArray(rows)||!rows.length||rows.length>50||new Set(rows.map(r=>r?.accountId)).size!==rows.length)throw Error('Select valid profiles');
  const scheduledTimes={},skipped=[];
- for(const id of ids){const time=profileTime(preferences,id,day);if(time===null){skipped.push(id);continue;}
-  const instant=zonedInstant(day,time,preferences.timeZone);if(Date.parse(instant)<=now)throw Error('Choose a future date and time');scheduledTimes[id]=instant;
+ for(const row of rows){
+  if(!row||typeof row.accountId!=='string'||!row.accountId||typeof row.useDefaults!=='boolean')throw Error('Select valid profiles');
+  weekday(row.day);
+  const time=row.useDefaults?profileTime(preferences,row.accountId,row.day):row.time;
+  if(row.useDefaults&&time===null){skipped.push(row.accountId);continue;}
+  const instant=zonedInstant(row.day,time,profileZone(preferences,row.accountId));
+  if(Date.parse(instant)<=now)throw Error('Choose a future date and time');
+  scheduledTimes[row.accountId]=instant;
  }
  if(!Object.keys(scheduledTimes).length)throw Error('No selected profile has a posting time for this day');
  return {accountIds:Object.keys(scheduledTimes),scheduledTimes,skipped};
+}
+export function resolveDay(preferences,ids,day,now=Date.now()){
+ if(!Array.isArray(ids))throw Error('Select valid profiles');
+ return resolveProfileRows(preferences,ids.map(accountId=>({accountId,day,useDefaults:true})),now);
+}
+
+export function scheduleFeedback(preferences,rows,accounts=[],now=Date.now()){
+ if(!rows.length)return {valid:false,message:'Select at least one LinkedIn profile'};
+ const errors=[],skipped=[];let eligible=0;
+ for(const row of rows){
+  const name=accounts.find(a=>a.id===row.accountId)?.display_name||row.accountId;
+  const context=name+' — '+(row.day||'Choose a valid date')+' ('+profileZone(preferences,row.accountId)+'): ';
+  try{
+   const plan=resolveProfileRows(preferences,[row],now);eligible+=plan.accountIds.length;
+  }catch(error){
+   if(error.message==='No selected profile has a posting time for this day')skipped.push(context+'No default time for this day. Use custom time or choose another date.');
+   else errors.push(context+error.message);
+  }
+ }
+ const valid=eligible>0&&!errors.length;
+ const messages=[...errors,...skipped.map(message=>'Will not be scheduled: '+message)];
+ if(!valid)messages.push('No posts will be scheduled until the timing is corrected.');
+ return {valid,message:messages.join('\n')};
 }

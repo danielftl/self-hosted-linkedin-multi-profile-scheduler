@@ -52,11 +52,13 @@ This project supports personal LinkedIn profiles, NOT Company Pages. Company Pag
 
 - Connect multiple **personal LinkedIn profiles**, each authorized through LinkedIn's official sign-in flow.
 - Write text once and schedule a separate post for each selected profile.
-- Attach **one** image, document, or video to each scheduled post.
-- Calendar and list views, status tracking, post preview, and standalone password-protected access.
+- Attach **1–20 images** (JPG/PNG/GIF) to one post, or one document/video. Image order is preserved from draft to publication.
+- Calendar, Scheduled, Drafts and Published views; full post previews; edit or reschedule queued posts before publishing.
+- Set a time zone and weekday posting defaults separately for each profile, including skipped days and explicit timing warnings.
+- Standalone password-protected access.
 - Clean up uploaded media after confirmed publication; flag uncertain outcomes rather than blindly posting twice.
 
-**Not supported:** LinkedIn Company Pages, Facebook, analytics, carousels, multiple attachments per post, or separate user logins for multiple customers.
+**Not supported:** LinkedIn Company Pages, Facebook, analytics, document carousels, multiple documents/videos on the same post, or separate user logins for multiple customers.
 
 **Why no LinkedIn Company Pages?** They require different organization-level permissions, including `w_organization_social`, and an appropriate LinkedIn API access approval. This code does not implement Company Page scheduling; receiving approval alone does not add that feature. See [LinkedIn's permissions documentation](https://learn.microsoft.com/en-us/linkedin/marketing/increasing-access) and [Posts API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api).
 
@@ -129,7 +131,7 @@ Tests use simulated LinkedIn responses. **Passing them does not prove a real Lin
 - Do not add `.env`, access tokens, SQLite databases, uploaded files or secrets to a public repository.
 - LinkedIn authorizations can expire; reconnect profiles when needed.
 - A published response lost in transit can leave a job uncertain. Check LinkedIn before retrying.
-- Attachment limit: one file per post; supported images JPG/PNG/GIF up to 20 MB, documents PDF/DOC/DOCX/PPT/PPTX and videos MP4/MOV up to 25 MB.
+- Attachment limit: up to 20 JPG/PNG/GIF images in one post (20 MB per image), OR one document PDF/DOC/DOCX/PPT/PPTX or video MP4/MOV (up to 25 MB). The maximum uploaded media size is enforced per file.
 - The repository includes an adapter for Sites/Cloudflare-style hosting, but **this public standalone package is not a one-click Sites deployment**. An AI must configure the destination's database, file storage, authentication, and scheduler and verify the actual deployed behavior.
 
 ## License

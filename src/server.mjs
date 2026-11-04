@@ -42,7 +42,7 @@ export function createApp({ env = process.env, storage, fetchImpl = fetch } = {}
         const results = await processDuePosts({storage:store,publisher:accountPublisher(store,env,fetchImpl),maxJobs:10});
         return send(200,{processed:results.length,results});
       }
-      if (req.method === 'GET' && ['/', '/app.js','/style.css','/posting-times.js','/text-format.js'].includes(url.pathname)) {
+      if (req.method === 'GET' && ['/', '/app.js','/style.css','/posting-times.js','/text-format.js','/temporal.js'].includes(url.pathname)) {
         const filename = url.pathname==='/' ? 'index.html' : url.pathname.slice(1);
         res.writeHead(200,{'Content-Type':filename.endsWith('.html')?'text/html; charset=utf-8':filename.endsWith('.js')?'text/javascript':'text/css'});
         return res.end(await readFile(new URL('../public/'+filename,import.meta.url)));

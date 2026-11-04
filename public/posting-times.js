@@ -1,3 +1,5 @@
+import {Temporal} from './temporal.js';
+
 export const DEFAULT_ZONE='Asia/Singapore';
 export const defaultPreferences=()=>({timeZone:DEFAULT_ZONE,profiles:{},profileZones:{}});
 export function validatePreferences(input){
@@ -33,14 +35,13 @@ export function weekday(day){
 export function profileTime(preferences,id,day){return preferences.profiles[id]?.[weekday(day)]===undefined?'10:00':preferences.profiles[id][weekday(day)];}
 export function zonedInstant(day,time,zone=DEFAULT_ZONE){
  weekday(day);if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(time||''))throw Error('Choose a valid posting time');
- const base=Date.parse(day+'T'+time+':00Z'),offsets=new Set();
- for(const delta of [-86400000,0,86400000]){
-  const probe=base+delta,p=localParts(probe,zone);
-  offsets.add(Date.parse(p.day+'T'+p.time+':'+p.second+'Z')-probe);
+ try {
+  const zoned = Temporal.ZonedDateTime.from(`${day}T${time}[${zone}]`, {disambiguation: 'reject'});
+  return new Date(zoned.epochMilliseconds).toISOString();
+ } catch (error) {
+  if (error instanceof RangeError) throw Error('Choose another time', {cause: error});
+  throw error;
  }
- const matches=[...offsets].map(offset=>base-offset).filter(t=>{const p=localParts(t,zone);return p.day===day&&p.time===time;});
- if(matches.length!==1)throw Error('Choose another time: daylight-saving time is missing or ambiguous');
- return new Date(matches[0]).toISOString();
 }
 export function profileZone(preferences,id){return preferences.profileZones?.[id]||DEFAULT_ZONE;}
 export function resolveProfileRows(preferences,rows,now=Date.now()){
@@ -72,7 +73,7 @@ export function scheduleFeedback(preferences,rows,accounts=[],now=Date.now()){
   try{
    const plan=resolveProfileRows(preferences,[row],now);eligible+=plan.accountIds.length;
   }catch(error){
-   if(error.message==='No selected profile has a posting time for this day')skipped.push(context+'No default time for this day. Use custom time or choose another date.');
+   if(error.message==='No selected profile has a posting time for this day')skipped.push(context+'No default time for '+new Intl.DateTimeFormat('en',{weekday:'long',timeZone:'UTC'}).format(new Date(row.day+'T12:00:00Z'))+'. Choose “Use custom time” to schedule this post.');
    else errors.push(context+error.message);
   }
  }

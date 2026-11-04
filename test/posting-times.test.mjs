@@ -14,8 +14,8 @@ test('profile weekday times resolve independently in Singapore and skip disabled
 test('time-zone conversion handles DST and rejects missing/ambiguous local times',()=>{
  assert.equal(zonedInstant('2030-07-01','10:00','America/New_York'),'2030-07-01T14:00:00.000Z');
  assert.equal(zonedInstant('2030-01-01','10:00','America/New_York'),'2030-01-01T15:00:00.000Z');
- assert.throws(()=>zonedInstant('2027-03-14','02:30','America/New_York'),/missing or ambiguous/);
- assert.throws(()=>zonedInstant('2027-11-07','01:30','America/New_York'),/missing or ambiguous/);
+ assert.throws(()=>zonedInstant('2027-03-14','02:30','America/New_York'),/Choose another time/);
+ assert.throws(()=>zonedInstant('2027-11-07','01:30','America/New_York'),/Choose another time/);
  assert.throws(()=>zonedInstant('2030-02-30','10:00'),/valid date/);
  assert.throws(()=>validatePreferences({timeZone:'invalid',profiles:{}}),/valid time zone/);
 });
